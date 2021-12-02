@@ -6,23 +6,45 @@
 # Currently only the recommended pthreadBC.dll is built by this makefile.
 #
 
+!ifndef MAKE
+MAKE = make
+!endif
 
 DLL_VER	= 2
 
-DEVROOT	= .
+DEVROOT	= install
 
-DLLDEST	= $(DEVROOT)\DLL
-LIBDEST	= $(DEVROOT)\DLL
+DLLDEST	= $(DEVROOT)/lib/
+LIBDEST	= $(DEVROOT)/lib/
+INCLUDEDEST = $(DEVROOT)/include/
 
-DLLS	= pthreadBC$(DLL_VER).dll
+SHAREDLIB = pthreadBC$(DLL_VER).dll
+STATICLIB = pthreadBC$(DLL_VER).lib
 
-OPTIM	= /O2
+!ifndef OPTIM
+OPTIM	= -O2
+!endif
 
-RC	= brcc32
+!ifndef DISABLE_CLASSIC
+CC = bcc32.exe
+!ifndef LIBPATH
+LIBPATH = -L"C:\PROGRAM FILES (X86)\EMBARCADERO\STUDIO\20.0\LIB\WIN32\RELEASE\"
+!endif
+!ifndef CFLAGS
+CFLAGS = -q -I. -DPTW32_BUILD -D_WIN32_WINNT=0x400 -DHAVE_CONFIG_H=1 -tD -tM -6 -w-aus -w-asc -w-par
+!endif
+!else
+CC = bcc32c.exe
+!ifndef LIBPATH
+LIBPATH = -L"C:\PROGRAM FILES (X86)\EMBARCADERO\STUDIO\20.0\LIB\WIN32C\RELEASE\"
+!endif
+!ifndef CFLAGS
+CFLAGS = -q -I. -DPTW32_BUILD -D_WIN32_WINNT=0x400 -DHAVE_CONFIG_H=1 -tD -tM
+!endif
+!endif
+
+RC	= brcc32.exe
 RCFLAGS	= -i.
-
-CFLAGS	= /q /I. /D_WIN32_WINNT=0x400 /DHAVE_PTW32_CONFIG_H=1 /4 /tWD /tWM \
-	  /w-aus /w-asc /w-par
 
 #C cleanup code
 BCFLAGS	= $(PTW32_FLAGS) $(CFLAGS)
@@ -211,9 +233,21 @@ TSD_SRCS	= \
 		pthread_getspecific.c
 
 
-all: clean $(DLLS)
+
+help:
+	@ echo "Run one of the following command lines:"
+	@ echo "make -f Bmakefile shared                     (to build the dll lib)"
+	@ echo "make -f Bmakefile static                     (to build the static lib)"
+	@ echo "make -f Bmakefile -DDISABLE_CLASSIC shared   (to build the shared lib with BCC32C compiler)"
+	@ echo "make -f Bmakefile -DDISABLE_CLASSIC static   (to build the static lib with BCC32C compiler)"
+	@ echo "make -f Bmakefile realclean                  (clean all output build files generated)"
+
+all:
+	@ $(MAKE) clean shared
+	@ $(MAKE) clean static
 
 realclean: clean
+	if exist pthread*.a del pthread*.a
 	if exist pthread*.dll del pthread*.dll
 	if exist pthread*.lib del pthread*.lib
 	if exist *.stamp del *.stamp
@@ -235,14 +269,26 @@ clean:
 
 
 install: $(DLLS)
-	copy pthread*.dll $(DLLDEST)
-	copy pthread*.lib $(LIBDEST)
+    mkdir -p $(DLLDEST) $(LIBDEST) $(INCLUDEDEST)
+	if exist pthread*.dll cp pthread*.dll $(DLLDEST)
+	if exist pthread*.lib cp pthread*.lib $(LIBDEST)
+	if exist pthread*.a cp pthread*.a $(LIBDEST)
+    cp pthread.h $(INCLUDEDEST)
+    cp sched.h $(INCLUDEDEST)
+    cp semaphore.h $(INCLUDEDEST)
 
-$(DLLS): $(DLL_OBJS) version.res
-	ilink32 /Tpd /Gi c0d32x.obj $(DLL_OBJS), \
+$(STATICLIB): $(DLL_OBJS)
+    tlib /N $@ /a $(DLL_OBJS)
+
+$(SHAREDLIB): $(DLL_OBJS) version.res
+	ilink32 -Gi -v -V5.0 -Tpd $(DLL_OBJS), \
 		$@, ,\
-		cw32mti.lib import32.lib, ,\
+		$(LIBPATH) import32.lib cw32mti.lib memmgr.lib c0d32x.obj sysinit.obj, ,\
 		version.res
+
+static: realclean $(STATICLIB)
+
+shared: realclean $(SHAREDLIB)
 
 .c.obj:
 	$(CC) $(OPTIM) $(BCFLAGS) -c $<
