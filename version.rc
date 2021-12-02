@@ -30,7 +30,9 @@
  *      59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  */
 
+#ifndef __BORLANDC__
 #include <winver.h>
+#endif
 #include "pthread.h"
 
 /*
@@ -116,7 +118,6 @@ BEGIN
             VALUE "ProductName", "POSIX Threads for Windows LPGL\0"
             VALUE "ProductVersion", PTW32_VERSION_STRING
             VALUE "FileVersion", PTW32_VERSION_STRING
-            VALUE "FileDescription", PTW32_VERSIONINFO_DESCRIPTION
             VALUE "InternalName", PTW32_VERSIONINFO_NAME
             VALUE "OriginalFilename", PTW32_VERSIONINFO_NAME
             VALUE "CompanyName", "Open Source Software community LGPL\0"
